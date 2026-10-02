@@ -6,6 +6,8 @@ import {
   BulkSubmitDto,
   CreateBucketDto,
 } from '../dto/bucket.dto';
+import { GetListFileDto } from '../dto/file.dto';
+import { FileEntity } from '../entities/file.entity';
 import { IResCreateBucket } from '../interfaces/bucket.interface';
 import { generateFileNameWithTimestamp } from '../utils/bucket.util';
 import { BucketFileService } from './bucket-file.service';
@@ -67,6 +69,10 @@ export class BucketService {
   }
 
   // read
+  async getList(query: GetListFileDto) {
+    return await this.bucketFileService.getList(query);
+  }
+
   async getUrlRead(id: string) {
     const { key, bucket } = await this.bucketFileService.findOne(id);
 
@@ -77,6 +83,17 @@ export class BucketService {
     const { key, fileName, bucket } = await this.bucketFileService.findOne(id);
 
     return this.minioService.getSignedUrlDown({ key, fileName, bucket });
+  }
+
+  // gắn presigned url đọc file vào entity (vd avatar của user)
+  async attachUrlRead<T extends FileEntity | null | undefined>(file: T) {
+    if (file) {
+      file.urlRead = await this.minioService.getSignedUrlRead({
+        key: file.key,
+        bucket: file.bucket,
+      });
+    }
+    return file;
   }
 
   async getDetail(id: string) {

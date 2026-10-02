@@ -1,20 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { hash } from 'bcryptjs';
-import {
-  And,
-  FindOperator,
-  FindOptionsWhere,
-  ILike,
-  In,
-  LessThanOrEqual,
-  MoreThanOrEqual,
-  Not,
-  Repository,
-} from 'typeorm';
+import { Brackets, Not, Repository, SelectQueryBuilder } from 'typeorm';
+import { FILE_ENTITY } from '../../bucket/constants/bucket.constant';
 import { BucketFileService } from '../../bucket/services/bucket-file.service';
+import { BucketService } from '../../bucket/services/bucket.service';
 import { PageDto } from '../../common/dtos/common.response.dto';
-import { PASSWORD_SALT_ROUNDS } from '../constants/user.constant';
+import { PASSWORD_SALT_ROUNDS, USER_ENTITY } from '../constants/user.constant';
 import { UserException } from '../constants/user.response';
 import { CreateUserDto, GetListUserDto, UpdateUserDto } from '../dto/user.dto';
 import { User } from '../entities/user.entity';
@@ -25,6 +17,7 @@ export class UserService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly bucketFileService: BucketFileService,
+    private readonly bucketService: BucketService,
   ) {}
 
   // create
@@ -58,29 +51,40 @@ export class UserService {
       pageSize,
     } = query;
 
-    const baseWhere: FindOptionsWhere<User> = {
-      status: statuses?.length ? In(statuses) : undefined,
-      createdAt: this.dateRange(startCreatedAt, endCreatedAt),
-      updatedAt: this.dateRange(startUpdatedAt, endUpdatedAt),
-    };
+    // alias = tên entity để fieldOrder (`${USER_ENTITY}.<field>`) dùng thẳng được,
+    // bảng join cũng đặt alias theo tên entity của nó
+    const qb = this.userRepo
+      .createQueryBuilder(USER_ENTITY)
+      .leftJoinAndSelect(`${USER_ENTITY}.avatar`, FILE_ENTITY)
+      .orderBy(fieldOrder, orderBy)
+      .skip(query.skip)
+      .take(query.limit);
+
+    if (statuses?.length) {
+      qb.andWhere(`${USER_ENTITY}.status IN (:...statuses)`, { statuses });
+    }
+    this.whereDateRange(qb, 'createdAt', startCreatedAt, endCreatedAt);
+    this.whereDateRange(qb, 'updatedAt', startUpdatedAt, endUpdatedAt);
 
     // mỗi keyword tìm theo email / fullName / phone (OR)
-    const where = keywords?.length
-      ? keywords.flatMap((keyword) =>
-          (['email', 'fullName', 'phone'] as const).map((field) => ({
-            ...baseWhere,
-            [field]: ILike(`%${keyword}%`),
-          })),
-        )
-      : baseWhere;
+    if (keywords?.length) {
+      qb.andWhere(
+        new Brackets((sub) =>
+          keywords.forEach((keyword, index) =>
+            (['email', 'fullName', 'phone'] as const).forEach((field) =>
+              sub.orWhere(`${USER_ENTITY}.${field} ILIKE :keyword${index}`, {
+                [`keyword${index}`]: `%${keyword}%`,
+              }),
+            ),
+          ),
+        ),
+      );
+    }
 
-    const [items, totalItems] = await this.userRepo.findAndCount({
-      where,
-      relations: { avatar: true },
-      order: { [fieldOrder]: orderBy },
-      skip: query.skip,
-      take: query.limit,
-    });
+    const [items, totalItems] = await qb.getManyAndCount();
+    await Promise.all(
+      items.map((item) => this.bucketService.attachUrlRead(item.avatar)),
+    );
 
     return new PageDto({
       items,
@@ -97,6 +101,7 @@ export class UserService {
     if (!user) {
       throw UserException.NOT_FOUND();
     }
+    await this.bucketService.attachUrlRead(user.avatar);
 
     return user;
   }
@@ -145,16 +150,21 @@ export class UserService {
     }
   }
 
-  private dateRange(start?: Date, end?: Date): FindOperator<Date> | undefined {
-    if (start && end) {
-      return And(MoreThanOrEqual(start), LessThanOrEqual(end));
-    }
+  private whereDateRange(
+    qb: SelectQueryBuilder<User>,
+    field: 'createdAt' | 'updatedAt',
+    start?: Date,
+    end?: Date,
+  ) {
     if (start) {
-      return MoreThanOrEqual(start);
+      qb.andWhere(`${USER_ENTITY}.${field} >= :${field}Start`, {
+        [`${field}Start`]: start,
+      });
     }
     if (end) {
-      return LessThanOrEqual(end);
+      qb.andWhere(`${USER_ENTITY}.${field} <= :${field}End`, {
+        [`${field}End`]: end,
+      });
     }
-    return undefined;
   }
 }

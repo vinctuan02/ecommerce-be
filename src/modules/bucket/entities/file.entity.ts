@@ -1,8 +1,9 @@
 import { Column, Entity } from 'typeorm';
 import { BaseUUIDEntity } from '../../common/entities/base.entity';
+import { FILE_ENTITY } from '../constants/bucket.constant';
 import { FILE_NAME_TIMESTAMP_PREFIX_LENGTH } from '../utils/bucket.util';
 
-@Entity('files', {
+@Entity(FILE_ENTITY, {
   comment: 'Bảng lưu trữ metadata của các file trên MinIO',
 })
 export class FileEntity extends BaseUUIDEntity {

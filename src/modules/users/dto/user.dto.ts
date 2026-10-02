@@ -16,6 +16,7 @@ import { BaseQueryDto2 } from '../../common/dtos/common.base-query.dto';
 import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
+  USER_ENTITY,
 } from '../constants/user.constant';
 import { UserStatus } from '../enums/user.enum';
 
@@ -71,18 +72,24 @@ export class CreateUserDto {
 // password không bắt buộc khi update, chỉ gửi khi muốn đổi
 export class UpdateUserDto extends PartialType(CreateUserDto) {}
 
+// dạng <entity>.<field>, sau này thêm field của bảng join (vd `${FILE_ENTITY}.fileName`)
 export const USER_ORDER_FIELDS = [
-  'createdAt',
-  'updatedAt',
-  'email',
-  'fullName',
+  `${USER_ENTITY}.createdAt`,
+  `${USER_ENTITY}.updatedAt`,
+  `${USER_ENTITY}.email`,
+  `${USER_ENTITY}.fullName`,
 ] as const;
 
+export type UserOrderField = (typeof USER_ORDER_FIELDS)[number];
+
 export class GetListUserDto extends BaseQueryDto2 {
-  @ApiPropertyOptional({ enum: USER_ORDER_FIELDS, default: 'createdAt' })
+  @ApiPropertyOptional({
+    enum: USER_ORDER_FIELDS,
+    default: `${USER_ENTITY}.createdAt`,
+  })
   @IsOptional()
   @IsIn(USER_ORDER_FIELDS)
-  fieldOrder: (typeof USER_ORDER_FIELDS)[number] = 'createdAt';
+  fieldOrder: UserOrderField = `${USER_ENTITY}.createdAt`;
 
   @ApiPropertyOptional({ enum: UserStatus, isArray: true })
   @IsOptional()

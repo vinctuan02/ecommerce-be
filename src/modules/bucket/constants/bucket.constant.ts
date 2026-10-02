@@ -1,5 +1,8 @@
 import { UploadPurpose } from '../enums/bucket.enum';
 
+// tên bảng, dùng làm alias khi query / join
+export const FILE_ENTITY = 'files';
+
 export const FolderBucketMap: Record<UploadPurpose, string> = {
   [UploadPurpose.USER_AVATAR]: 'users/avatars',
   [UploadPurpose.PRODUCT_IMAGE]: 'products/images',

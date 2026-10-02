@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import {
@@ -12,6 +14,7 @@ import {
   BulkSubmitDto,
   CreateBucketDto,
 } from '../dto/bucket.dto';
+import { GetListFileDto } from '../dto/file.dto';
 import { BucketService } from '../services/bucket.service';
 
 @ApiTags('Bucket')
@@ -41,6 +44,11 @@ export class BucketController {
   }
 
   // read
+  @Get()
+  async getList(@Query() query: GetListFileDto) {
+    return await this.bucketService.getList(query);
+  }
+
   @Get(':id/download')
   async getUrlDown(@Param('id', ParseUUIDPipe) id: string) {
     return await this.bucketService.getUrlDown(id);
@@ -54,5 +62,11 @@ export class BucketController {
   @Get(':id')
   async getDetail(@Param('id', ParseUUIDPipe) id: string) {
     return await this.bucketService.getDetail(id);
+  }
+
+  // delete: xoá cả trên MinIO và trong db
+  @Delete(':id')
+  async delete(@Param('id', ParseUUIDPipe) id: string) {
+    await this.bucketService.delete(id);
   }
 }

@@ -1,16 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  And,
-  FindOperator,
-  FindOptionsWhere,
-  ILike,
-  In,
-  LessThanOrEqual,
-  MoreThanOrEqual,
-  Repository,
-} from 'typeorm';
+import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
 import { PageDto } from '../../common/dtos/common.response.dto';
+import { FILE_ENTITY } from '../constants/bucket.constant';
 import { BucketException } from '../constants/bucket.response';
 import { GetListFileDto } from '../dto/file.dto';
 import { FileEntity } from '../entities/file.entity';
@@ -43,27 +35,36 @@ export class BucketFileService {
       pageSize,
     } = query;
 
-    const baseWhere: FindOptionsWhere<FileEntity> = {
-      id: ids?.length ? In(ids) : undefined,
-      isSubmitted,
-      createdAt: this.dateRange(startCreatedAt, endCreatedAt),
-      updatedAt: this.dateRange(startUpdatedAt, endUpdatedAt),
-    };
+    // alias = tên entity để fieldOrder (`${FILE_ENTITY}.<field>`) dùng thẳng được
+    const qb = this.fileRepo
+      .createQueryBuilder(FILE_ENTITY)
+      .orderBy(fieldOrder, orderBy)
+      .skip(query.skip)
+      .take(query.limit);
+
+    if (ids?.length) {
+      qb.andWhere(`${FILE_ENTITY}.id IN (:...ids)`, { ids });
+    }
+    if (isSubmitted !== undefined) {
+      qb.andWhere(`${FILE_ENTITY}.isSubmitted = :isSubmitted`, { isSubmitted });
+    }
+    this.whereDateRange(qb, 'createdAt', startCreatedAt, endCreatedAt);
+    this.whereDateRange(qb, 'updatedAt', startUpdatedAt, endUpdatedAt);
 
     // mỗi keyword là 1 điều kiện OR theo fileName
-    const where = keywords?.length
-      ? keywords.map((keyword) => ({
-          ...baseWhere,
-          fileName: ILike(`%${keyword}%`),
-        }))
-      : baseWhere;
+    if (keywords?.length) {
+      qb.andWhere(
+        new Brackets((sub) =>
+          keywords.forEach((keyword, index) =>
+            sub.orWhere(`${FILE_ENTITY}.fileName ILIKE :keyword${index}`, {
+              [`keyword${index}`]: `%${keyword}%`,
+            }),
+          ),
+        ),
+      );
+    }
 
-    const [items, totalItems] = await this.fileRepo.findAndCount({
-      where,
-      order: { [fieldOrder]: orderBy },
-      skip: query.skip,
-      take: query.limit,
-    });
+    const [items, totalItems] = await qb.getManyAndCount();
 
     return new PageDto({
       items,
@@ -71,17 +72,22 @@ export class BucketFileService {
     });
   }
 
-  private dateRange(start?: Date, end?: Date): FindOperator<Date> | undefined {
-    if (start && end) {
-      return And(MoreThanOrEqual(start), LessThanOrEqual(end));
-    }
+  private whereDateRange(
+    qb: SelectQueryBuilder<FileEntity>,
+    field: 'createdAt' | 'updatedAt',
+    start?: Date,
+    end?: Date,
+  ) {
     if (start) {
-      return MoreThanOrEqual(start);
+      qb.andWhere(`${FILE_ENTITY}.${field} >= :${field}Start`, {
+        [`${field}Start`]: start,
+      });
     }
     if (end) {
-      return LessThanOrEqual(end);
+      qb.andWhere(`${FILE_ENTITY}.${field} <= :${field}End`, {
+        [`${field}End`]: end,
+      });
     }
-    return undefined;
   }
 
   async findOne(id: string) {

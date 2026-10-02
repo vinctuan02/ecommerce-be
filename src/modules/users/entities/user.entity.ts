@@ -1,9 +1,10 @@
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import { FileEntity } from '../../bucket/entities/file.entity';
 import { BaseUUIDEntity } from '../../common/entities/base.entity';
+import { USER_ENTITY } from '../constants/user.constant';
 import { UserStatus } from '../enums/user.enum';
 
-@Entity('users')
+@Entity(USER_ENTITY)
 export class User extends BaseUUIDEntity {
   @Column({ type: 'varchar', length: 255, unique: true })
   email: string;
