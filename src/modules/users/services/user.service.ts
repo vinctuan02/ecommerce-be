@@ -12,6 +12,7 @@ import {
   Not,
   Repository,
 } from 'typeorm';
+import { BucketFileService } from '../../bucket/services/bucket-file.service';
 import { PageDto } from '../../common/dtos/common.response.dto';
 import { PASSWORD_SALT_ROUNDS } from '../constants/user.constant';
 import { UserException } from '../constants/user.response';
@@ -23,6 +24,7 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly bucketFileService: BucketFileService,
   ) {}
 
   // create
@@ -30,6 +32,7 @@ export class UserService {
     const { password, ...rest } = data;
 
     await this.ensureEmailNotExisted(rest.email);
+    await this.ensureAvatarExisted(rest.avatarFileId);
 
     const user = this.userRepo.create({
       ...rest,
@@ -73,6 +76,7 @@ export class UserService {
 
     const [items, totalItems] = await this.userRepo.findAndCount({
       where,
+      relations: { avatar: true },
       order: { [fieldOrder]: orderBy },
       skip: query.skip,
       take: query.limit,
@@ -85,7 +89,10 @@ export class UserService {
   }
 
   async findOne(id: string): Promise<User> {
-    const user = await this.userRepo.findOne({ where: { id } });
+    const user = await this.userRepo.findOne({
+      where: { id },
+      relations: { avatar: true },
+    });
 
     if (!user) {
       throw UserException.NOT_FOUND();
@@ -103,6 +110,7 @@ export class UserService {
     if (rest.email) {
       await this.ensureEmailNotExisted(rest.email, id);
     }
+    await this.ensureAvatarExisted(rest.avatarFileId);
 
     await this.userRepo.update(id, {
       ...rest,
@@ -121,6 +129,12 @@ export class UserService {
   }
 
   // helpers
+  private async ensureAvatarExisted(avatarFileId?: string | null) {
+    if (avatarFileId) {
+      await this.bucketFileService.findOne(avatarFileId);
+    }
+  }
+
   private async ensureEmailNotExisted(email: string, excludeId?: string) {
     const existed = await this.userRepo.exists({
       where: { email, ...(excludeId && { id: Not(excludeId) }) },

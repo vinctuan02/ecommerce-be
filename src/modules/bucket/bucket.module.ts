@@ -11,6 +11,6 @@ import { MinioService } from './services/minio.service';
   imports: [TypeOrmModule.forFeature([FileEntity])],
   providers: [BucketService, BucketFileService, MinioService],
   controllers: [BucketFileController, BucketController],
-  exports: [BucketService],
+  exports: [BucketService, BucketFileService],
 })
 export class BucketModule {}
