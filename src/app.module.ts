@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseConfigService } from './modules/common/config/database.config';
 import { envValidationSchema } from './modules/common/config/env.validation.schema';
+import { BucketModule } from './modules/bucket/bucket.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { envValidationSchema } from './modules/common/config/env.validation.sche
       validationSchema: envValidationSchema,
     }),
     TypeOrmModule.forRootAsync({ useClass: DatabaseConfigService }),
+    BucketModule,
   ],
   controllers: [AppController],
   providers: [AppService],
