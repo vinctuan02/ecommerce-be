@@ -53,4 +53,9 @@ export class FileEntity extends BaseUUIDEntity {
     comment: 'Tên bucket lưu trữ file',
   })
   bucket: string;
+
+  // virtual fields: không có trong db
+  urlRead?: string;
+  urlUpload?: string;
+  urlDownload?: string;
 }
