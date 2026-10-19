@@ -36,6 +36,12 @@ export const envValidationSchema = Joi.object({
   COOKIE_SECURE: Joi.boolean().default(false),
   FE_URL: Joi.string().uri().default('http://localhost:3000'), // ghép link trong email
 
+  // Tài khoản admin: lúc khởi động chưa có thì tạo (cần ADMIN_PASSWORD), có rồi thì gán role ADMIN
+  ADMIN_EMAIL: Joi.string()
+    .email({ tlds: { allow: false } })
+    .optional(),
+  ADMIN_PASSWORD: Joi.string().min(8).max(72).optional(),
+
   // Domains — CSV list, separator `,`. Empty là hợp lệ (fallback trong domain.config).
   CORS_ORIGINS: Joi.string().allow('').default(''),
   PRIMARY_DOMAINS: Joi.string().allow('').default(''),

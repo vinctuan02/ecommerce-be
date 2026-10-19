@@ -18,7 +18,7 @@ import {
   PASSWORD_MIN_LENGTH,
   USER_ENTITY,
 } from '../constants/user.constant';
-import { UserRole, UserStatus } from '../enums/user.enum';
+import { UserStatus } from '../enums/user.enum';
 
 export const trimLower = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim().toLowerCase() : value;
@@ -67,11 +67,6 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(UserStatus)
   status?: UserStatus;
-
-  @ApiPropertyOptional({ enum: UserRole, default: UserRole.CUSTOMER })
-  @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
 }
 
 // password không bắt buộc khi update, chỉ gửi khi muốn đổi
@@ -104,4 +99,17 @@ export class GetListUserDto extends BaseQueryDto2 {
     typeof value === 'string' ? [value] : value,
   )
   statuses?: UserStatus[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'User có ít nhất 1 trong các role này',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('all', { each: true })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? [value] : value,
+  )
+  roleIds?: string[];
 }

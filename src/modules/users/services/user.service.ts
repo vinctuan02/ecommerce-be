@@ -6,6 +6,10 @@ import { FILE_ENTITY } from '../../bucket/constants/bucket.constant';
 import { BucketFileService } from '../../bucket/services/bucket-file.service';
 import { BucketService } from '../../bucket/services/bucket.service';
 import { PageDto } from '../../common/dtos/common.response.dto';
+import {
+  ROLE_ENTITY,
+  USER_ROLE_TABLE,
+} from '../../rbac/constants/rbac.constant';
 import { PASSWORD_SALT_ROUNDS, USER_ENTITY } from '../constants/user.constant';
 import { UserException } from '../constants/user.response';
 import { CreateUserDto, GetListUserDto, UpdateUserDto } from '../dto/user.dto';
@@ -41,6 +45,7 @@ export class UserService {
     const {
       keywords,
       statuses,
+      roleIds,
       startCreatedAt,
       endCreatedAt,
       startUpdatedAt,
@@ -56,12 +61,21 @@ export class UserService {
     const qb = this.userRepo
       .createQueryBuilder(USER_ENTITY)
       .leftJoinAndSelect(`${USER_ENTITY}.avatar`, FILE_ENTITY)
+      .leftJoinAndSelect(`${USER_ENTITY}.userRoles`, USER_ROLE_TABLE)
+      .leftJoinAndSelect(`${USER_ROLE_TABLE}.role`, ROLE_ENTITY)
       .orderBy(fieldOrder, orderBy)
       .skip(query.skip)
       .take(query.limit);
 
     if (statuses?.length) {
       qb.andWhere(`${USER_ENTITY}.status IN (:...statuses)`, { statuses });
+    }
+    // lọc qua subquery để vẫn trả đủ các role khác của user
+    if (roleIds?.length) {
+      qb.andWhere(
+        `${USER_ENTITY}.id IN (SELECT user_id FROM ${USER_ROLE_TABLE} WHERE role_id IN (:...roleIds))`,
+        { roleIds },
+      );
     }
     this.whereDateRange(qb, 'createdAt', startCreatedAt, endCreatedAt);
     this.whereDateRange(qb, 'updatedAt', startUpdatedAt, endUpdatedAt);
@@ -82,6 +96,7 @@ export class UserService {
     }
 
     const [items, totalItems] = await qb.getManyAndCount();
+    items.forEach((item) => this.attachRoles(item));
     await Promise.all(
       items.map((item) => this.bucketService.attachUrlRead(item.avatar)),
     );
@@ -95,13 +110,14 @@ export class UserService {
   async findOne(id: string): Promise<User> {
     const user = await this.userRepo.findOne({
       where: { id },
-      relations: { avatar: true },
+      relations: { avatar: true, userRoles: { role: true } },
     });
 
     if (!user) {
       throw UserException.NOT_FOUND();
     }
     await this.bucketService.attachUrlRead(user.avatar);
+    this.attachRoles(user);
 
     return user;
   }
@@ -167,6 +183,12 @@ export class UserService {
   }
 
   // helpers
+  // API trả user.roles (danh sách role), ẩn bảng nối userRoles
+  private attachRoles(user: User) {
+    user.roles = user.userRoles?.map((userRole) => userRole.role) ?? [];
+    delete user.userRoles;
+  }
+
   private async ensureAvatarExisted(avatarFileId?: string | null) {
     if (avatarFileId) {
       await this.bucketFileService.findOne(avatarFileId);

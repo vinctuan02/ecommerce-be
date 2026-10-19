@@ -8,7 +8,6 @@ import {
   Post,
   Req,
   Res,
-  UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiCookieAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
@@ -25,8 +24,6 @@ import {
   ResetPasswordDto,
   TokenDto,
 } from '../dto/auth.dto';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { RolesGuard } from '../guards/roles.guard';
 import type {
   AuthResult,
   JwtPayload,
@@ -34,9 +31,7 @@ import type {
 } from '../interfaces/auth.interface';
 import { AuthService } from '../services/auth.service';
 
-// TODO: khi đăng ký JwtAuthGuard / RolesGuard global (APP_GUARD) thì bỏ @UseGuards ở đây
 @ApiTags('Auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('auth')
 export class AuthController {
   constructor(

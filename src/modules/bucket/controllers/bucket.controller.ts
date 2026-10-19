@@ -9,6 +9,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { PERMISSIONS } from '../../rbac/constants/permission.constant';
+import { RequirePermissions } from '../../rbac/decorators/rbac.decorator';
 import {
   BulkCreateBucketDto,
   BulkSubmitDto,
@@ -17,6 +19,8 @@ import {
 import { GetListFileDto } from '../dto/file.dto';
 import { BucketService } from '../services/bucket.service';
 
+// upload, lấy url đọc / tải: mọi user đã đăng nhập (khách cần upload avatar)
+// liệt kê, xem chi tiết, xoá: cần quyền files:*
 @ApiTags('Bucket')
 @Controller('bucket')
 export class BucketController {
@@ -45,6 +49,7 @@ export class BucketController {
 
   // read
   @Get()
+  @RequirePermissions(PERMISSIONS.FILES_READ)
   async getList(@Query() query: GetListFileDto) {
     return await this.bucketService.getList(query);
   }
@@ -60,12 +65,14 @@ export class BucketController {
   }
 
   @Get(':id')
+  @RequirePermissions(PERMISSIONS.FILES_READ)
   async getDetail(@Param('id', ParseUUIDPipe) id: string) {
     return await this.bucketService.getDetail(id);
   }
 
   // delete: xoá cả trên MinIO và trong db
   @Delete(':id')
+  @RequirePermissions(PERMISSIONS.FILES_DELETE)
   async delete(@Param('id', ParseUUIDPipe) id: string) {
     await this.bucketService.delete(id);
   }

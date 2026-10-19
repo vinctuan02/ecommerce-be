@@ -9,7 +9,6 @@ export const REFRESH_TOKEN_COOKIE = 'refresh_token';
 
 // metadata key cho decorator
 export const IS_PUBLIC_KEY = 'isPublic';
-export const ROLES_KEY = 'roles';
 
 // số byte ngẫu nhiên của refresh token / token gửi qua email
 export const TOKEN_BYTES = 32;

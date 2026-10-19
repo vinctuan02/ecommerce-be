@@ -3,7 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { compare, hashSync } from 'bcryptjs';
 import { PASSWORD_SALT_ROUNDS } from '../../users/constants/user.constant';
 import { User } from '../../users/entities/user.entity';
-import { UserRole, UserStatus } from '../../users/enums/user.enum';
+import { SystemRole } from '../../rbac/constants/rbac.constant';
+import { RbacService } from '../../rbac/services/rbac.service';
+import { UserStatus } from '../../users/enums/user.enum';
 import { UserService } from '../../users/services/user.service';
 import { AuthException } from '../constants/auth.response';
 import {
@@ -15,6 +17,7 @@ import {
 import { UserTokenType } from '../enums/auth.enum';
 import {
   AuthResult,
+  AuthUser,
   JwtPayload,
   RequestContext,
 } from '../interfaces/auth.interface';
@@ -33,6 +36,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly sessionService: SessionService,
     private readonly userTokenService: UserTokenService,
+    private readonly rbacService: RbacService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -42,12 +46,12 @@ export class AuthService {
       email: data.email,
       password: data.password,
       fullName: data.fullName,
-      role: UserRole.CUSTOMER,
     });
+    await this.rbacService.assignRole(user.id, SystemRole.CUSTOMER);
 
     await this.sendVerifyEmail(user);
 
-    return this.startSession(user, ctx);
+    return this.startSession(await this.userService.findOne(user.id), ctx);
   }
 
   async login(data: LoginDto, ctx: RequestContext): Promise<AuthResult> {
@@ -79,7 +83,7 @@ export class AuthService {
 
     const tokens = await this.sessionService.rotate(session, user, ctx);
 
-    return { ...tokens, user };
+    return { ...tokens, user: await this.withPermissions(user) };
   }
 
   // token sai / hết hạn vẫn coi như đã đăng xuất
@@ -96,8 +100,8 @@ export class AuthService {
     await this.sessionService.revokeAllForUser(userId);
   }
 
-  async me(userId: string): Promise<User> {
-    return this.userService.findOne(userId);
+  async me(userId: string): Promise<AuthUser> {
+    return this.withPermissions(await this.userService.findOne(userId));
   }
 
   async verifyEmail(token: string): Promise<User> {
@@ -171,7 +175,13 @@ export class AuthService {
   ): Promise<AuthResult> {
     const tokens = await this.sessionService.create(user, ctx);
 
-    return { ...tokens, user };
+    return { ...tokens, user: await this.withPermissions(user) };
+  }
+
+  private async withPermissions(user: User): Promise<AuthUser> {
+    return Object.assign(user, {
+      permissions: await this.rbacService.getUserPermissions(user.id),
+    });
   }
 
   private ensureActive(user: User) {
