@@ -29,6 +29,13 @@ export const envValidationSchema = Joi.object({
   MINIO_SECRET_KEY: Joi.string().optional(),
   MINIO_BUCKET: Joi.string().optional(),
 
+  // Auth
+  JWT_ACCESS_SECRET: Joi.string().min(32).required(),
+  JWT_ACCESS_EXPIRES_IN: Joi.number().default(15 * 60), // giây
+  REFRESH_TOKEN_TTL_DAYS: Joi.number().default(30),
+  COOKIE_SECURE: Joi.boolean().default(false),
+  FE_URL: Joi.string().uri().default('http://localhost:3000'), // ghép link trong email
+
   // Domains — CSV list, separator `,`. Empty là hợp lệ (fallback trong domain.config).
   CORS_ORIGINS: Joi.string().allow('').default(''),
   PRIMARY_DOMAINS: Joi.string().allow('').default(''),

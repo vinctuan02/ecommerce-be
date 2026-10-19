@@ -18,12 +18,12 @@ import {
   PASSWORD_MIN_LENGTH,
   USER_ENTITY,
 } from '../constants/user.constant';
-import { UserStatus } from '../enums/user.enum';
+import { UserRole, UserStatus } from '../enums/user.enum';
 
-const trimLower = ({ value }: { value: unknown }) =>
+export const trimLower = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim().toLowerCase() : value;
 
-const trim = ({ value }: { value: unknown }) =>
+export const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
 export class CreateUserDto {
@@ -67,6 +67,11 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(UserStatus)
   status?: UserStatus;
+
+  @ApiPropertyOptional({ enum: UserRole, default: UserRole.CUSTOMER })
+  @IsOptional()
+  @IsEnum(UserRole)
+  role?: UserRole;
 }
 
 // password không bắt buộc khi update, chỉ gửi khi muốn đổi

@@ -106,6 +106,29 @@ export class UserService {
     return user;
   }
 
+  // dùng cho auth: passwordHash để select: false nên phải addSelect
+  async findByEmailWithPassword(email: string): Promise<User | null> {
+    return this.userRepo
+      .createQueryBuilder(USER_ENTITY)
+      .addSelect(`${USER_ENTITY}.passwordHash`)
+      .where(`${USER_ENTITY}.email = :email`, { email })
+      .getOne();
+  }
+
+  async findOneWithPassword(id: string): Promise<User> {
+    const user = await this.userRepo
+      .createQueryBuilder(USER_ENTITY)
+      .addSelect(`${USER_ENTITY}.passwordHash`)
+      .where(`${USER_ENTITY}.id = :id`, { id })
+      .getOne();
+
+    if (!user) {
+      throw UserException.NOT_FOUND();
+    }
+
+    return user;
+  }
+
   // update
   async update(id: string, data: UpdateUserDto): Promise<User> {
     const { password, ...rest } = data;
@@ -125,6 +148,16 @@ export class UserService {
     });
 
     return this.findOne(id);
+  }
+
+  async updatePassword(id: string, password: string): Promise<void> {
+    await this.userRepo.update(id, {
+      passwordHash: await hash(password, PASSWORD_SALT_ROUNDS),
+    });
+  }
+
+  async markEmailVerified(id: string): Promise<void> {
+    await this.userRepo.update(id, { emailVerifiedAt: new Date() });
   }
 
   // delete

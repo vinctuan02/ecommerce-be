@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseConfigService } from './modules/common/config/database.config';
 import { envValidationSchema } from './modules/common/config/env.validation.schema';
+import { AuthModule } from './modules/auth/auth.module';
 import { BucketModule } from './modules/bucket/bucket.module';
 import { UserModule } from './modules/users/user.module';
 
@@ -17,6 +18,7 @@ import { UserModule } from './modules/users/user.module';
     TypeOrmModule.forRootAsync({ useClass: DatabaseConfigService }),
     BucketModule,
     UserModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
